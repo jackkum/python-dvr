@@ -3,7 +3,6 @@ import struct
 import json
 from time import sleep
 import hashlib
-import threading
 import asyncio
 from datetime import *
 from re import compile

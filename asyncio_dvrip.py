@@ -117,7 +117,6 @@ class DVRIPCam(object):
 
             # it's important to extend timeout for upgrade procedure
             self.timeout = timeout
-            #self.socket.settimeout(timeout)
         except OSError:
             raise SomethingIsWrongWithCamera('Cannot connect to camera')
 

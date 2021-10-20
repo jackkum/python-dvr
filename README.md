@@ -99,7 +99,7 @@ async def main(loop):
 
     # take snapshot
     image = await cam.snapshot()
-    # same it
+    # save it
     with open("snap.jpeg", "wb") as fp:
       fp.write(image)
 

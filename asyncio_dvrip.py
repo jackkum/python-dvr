@@ -214,7 +214,7 @@ class DVRIPCam(object):
 
     async def login(self, loop):
         if self.socket_writer is None:
-            await self.connect()
+            await asyncio.wait_for(self.connect(), timeout=self.timeout)
         data = await self.send(
             1000,
             {

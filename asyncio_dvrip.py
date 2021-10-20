@@ -94,6 +94,7 @@ class DVRIPCam(object):
         self.alive_time = 20
         self.alive = None
         self.alarm_func = None
+        self.timeout = 60
         self.busy = asyncio.Lock()
 
     def debug(self, format=None):
@@ -107,7 +108,7 @@ class DVRIPCam(object):
     async def connect(self, timeout=10):
         try:
             if self.proto == "tcp":
-                self.socket_reader, self.socket_writer = await asyncio.open_connection(self.ip, self.port)
+                self.socket_reader, self.socket_writer = await asyncio.wait_for(asyncio.open_connection(self.ip, self.port), timeout=timeout)
                 self.socket_send = self.tcp_socket_send
                 self.socket_recv = self.tcp_socket_recv
             elif self.proto == "udp":
@@ -214,7 +215,7 @@ class DVRIPCam(object):
 
     async def login(self, loop):
         if self.socket_writer is None:
-            await asyncio.wait_for(self.connect(), timeout=self.timeout)
+            await self.connect(self.timeout)
         data = await self.send(
             1000,
             {

@@ -94,7 +94,7 @@ class DVRIPCam(object):
         self.alive_time = 20
         self.alive = None
         self.alarm_func = None
-        self.timeout = 60
+        self.timeout = 10
         self.busy = asyncio.Lock()
 
     def debug(self, format=None):
@@ -215,7 +215,7 @@ class DVRIPCam(object):
 
     async def login(self, loop):
         if self.socket_writer is None:
-            await self.connect(self.timeout)
+            await self.connect()
         data = await self.send(
             1000,
             {

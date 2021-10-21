@@ -137,6 +137,7 @@ class DVRIPCam(object):
 
     async def tcp_socket_recv(self, bufsize):
         try:
+            print("  >> socket_reader.read")
             return await self.socket_reader.read(bufsize)
         except:
             return None
@@ -148,6 +149,7 @@ class DVRIPCam(object):
 
         while True:
             try:
+                print("wait_for()")
                 data = await asyncio.wait_for(self.socket_recv(length - received), timeout=self.timeout)
                 buf.extend(data)
                 received += len(data)
@@ -696,6 +698,7 @@ class DVRIPCam(object):
         start_time = time.time()
 
         while True:
+            print("  >> receive_with_timeout(20)")
             data = await self.receive_with_timeout(20)
             (
                 head,
@@ -707,6 +710,7 @@ class DVRIPCam(object):
                 msgid,
                 len_data,
             ) = struct.unpack("BB2xIIBBHI", data)
+            print("  >> receive_with_timeout(%d)" % len_data)
             packet = await self.receive_with_timeout(len_data)
             frame_len = 0
             if length == 0:

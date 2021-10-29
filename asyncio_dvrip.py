@@ -157,7 +157,7 @@ class DVRIPCam(object):
                 if elapsed_time > self.timeout:
                     return None
             except asyncio.TimeoutError:
-                continue
+                return None
         return buf
 
     async def receive_json(self, length):

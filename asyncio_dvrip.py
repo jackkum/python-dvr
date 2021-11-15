@@ -7,6 +7,7 @@ from datetime import *
 from re import compile
 import time
 import logging
+import traceback
 
 class SomethingIsWrongWithCamera(Exception):
     pass
@@ -173,47 +174,54 @@ class DVRIPCam(object):
     async def send(self, msg, data={}, wait_response=True):
         if self.socket_writer is None:
             return {"Ret": 101}
+
         await self.busy.acquire()
-        if hasattr(data, "__iter__"):
-            data = bytes(json.dumps(data, ensure_ascii=False), "utf-8")
-        pkt = (
-            struct.pack(
-                "BB2xII2xHI",
-                255,
-                0,
-                self.session,
-                self.packet_count,
-                msg,
-                len(data) + 2,
+        try:
+            if hasattr(data, "__iter__"):
+                data = bytes(json.dumps(data, ensure_ascii=False), "utf-8")
+            pkt = (
+                struct.pack(
+                    "BB2xII2xHI",
+                    255,
+                    0,
+                    self.session,
+                    self.packet_count,
+                    msg,
+                    len(data) + 2,
+                )
+                + data
+                + b"\x0a\x00"
             )
-            + data
-            + b"\x0a\x00"
-        )
-        self.logger.debug("=> %s", pkt)
-        self.socket_send(pkt)
-        if wait_response:
-            reply = {"Ret": 101}
-            data = await self.socket_recv(20)
-            if data is None or len(data) < 20:
-                return None
-            (
-                head,
-                version,
-                self.session,
-                sequence_number,
-                msgid,
-                len_data,
-            ) = struct.unpack("BB2xII2xHI", data)
-            reply = await self.receive_json(len_data)
+            self.logger.debug("=> %s", pkt)
+            self.socket_send(pkt)
+            if wait_response:
+                reply = {"Ret": 101}
+                data = await self.socket_recv(20)
+                if data is None or len(data) < 20:
+                    return None
+                (
+                    head,
+                    version,
+                    self.session,
+                    sequence_number,
+                    msgid,
+                    len_data,
+                ) = struct.unpack("BB2xII2xHI", data)
+                reply = await self.receive_json(len_data)
+                return reply
+        except Exception as err:
+            print(''.join(traceback.format_tb(err.__traceback__) + [str(err)]))
+            self.close()
+            return {"Ret": 101}
+        finally:
             self.busy.release()
-            return reply
 
     def sofia_hash(self, password=""):
         md5 = hashlib.md5(bytes(password, "utf-8")).digest()
         chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
         return "".join([chars[sum(x) % 62] for x in zip(md5[::2], md5[1::2])])
 
-    async def login(self, loop):
+    async def login(self):
         if self.socket_writer is None:
             await self.connect()
         data = await self.send(
@@ -229,7 +237,6 @@ class DVRIPCam(object):
             return False
         self.session = int(data["SessionID"], 16)
         self.alive_time = data["AliveInterval"]
-        self.keep_alive(loop)
         return data["Ret"] in self.OK_CODES
 
     async def getAuthorityList(self):
@@ -447,6 +454,15 @@ class DVRIPCam(object):
 
     async def keep_alive_workner(self):
         while True:
+            await asyncio.sleep(self.alive_time)
+
+            await self.busy.acquire()
+            # in monitoring mode no need keep alive
+            if hasattr(self, 'monitoring') and self.monitoring:
+                self.busy.release()
+                continue
+
+            self.busy.release()
 
             ret = await self.send(
                 self.QCODES["KeepAlive"],
@@ -455,8 +471,6 @@ class DVRIPCam(object):
             if ret is None:
                 self.close()
                 break
-
-            await asyncio.sleep(self.alive_time)
 
     def keep_alive(self, loop):
         loop.create_task(self.keep_alive_workner())

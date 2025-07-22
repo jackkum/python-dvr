@@ -173,10 +173,11 @@ class DVRIPCam(object):
 
         while True:
             data = self.socket_recv(length - received)
-            buf.extend(data)
-            received += len(data)
-            if length == received:
-                break
+            if data is not None:
+                buf.extend(data)
+                received += len(data)
+                if length == received:
+                    break
             elapsed_time = time.time() - start_time
             if elapsed_time > self.timeout:
                 return None

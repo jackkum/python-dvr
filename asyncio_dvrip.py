@@ -149,6 +149,8 @@ class DVRIPCam(object):
         while True:
             try:
                 data = await asyncio.wait_for(self.socket_recv(length - received), timeout=self.timeout)
+                if data is None:
+                    return None
                 buf.extend(data)
                 received += len(data)
                 if length == received:
